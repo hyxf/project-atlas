@@ -18,6 +18,8 @@ class ProjectEditDialog(
     path: Path,
     item: ProjectItem? = null,
     allowPathSelection: Boolean = true,
+    initialTags: Set<String> = emptySet(),
+    initialFavorite: Boolean = false,
 ) : DialogWrapper(owner) {
     private val nameField = JBTextField(item?.name ?: path.fileName?.toString().orEmpty())
     private val pathField = TextFieldWithBrowseButton(JBTextField(path.toString())).apply {
@@ -29,8 +31,8 @@ class ProjectEditDialog(
         )
         isEnabled = allowPathSelection
     }
-    private val tagsField = JBTextField(item?.tags?.sorted()?.joinToString(", ").orEmpty())
-    private val favoriteField = JBCheckBox("Favorite", item?.favorite ?: false)
+    private val tagsField = JBTextField((item?.tags ?: initialTags).sorted().joinToString(", "))
+    private val favoriteField = JBCheckBox("Favorite", item?.favorite ?: initialFavorite)
 
     init {
         title = if (item == null) "Add Project" else "Edit Project"

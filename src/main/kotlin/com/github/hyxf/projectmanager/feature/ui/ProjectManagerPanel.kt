@@ -3,6 +3,7 @@ package com.github.hyxf.projectmanager.feature.ui
 import com.github.hyxf.projectmanager.ProjectManagerIcons
 import com.github.hyxf.projectmanager.feature.project.ProjectItem
 import com.github.hyxf.projectmanager.feature.project.ProjectManagerService
+import com.github.hyxf.projectmanager.infrastructure.filesystem.ProjectDirectoryDuplicator
 import com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore
 import com.github.hyxf.projectmanager.settings.ProjectManagerConfigurable
 import com.github.hyxf.projectmanager.settings.ProjectManagerSettings
@@ -581,6 +582,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     private fun contextActions() = DefaultActionGroup().apply {
         add(action("Open") { openSelected(false) }); add(action("Open in New Window") { openSelected(true) }); addSeparator()
         add(action("Edit Project…") { editSelected() })
+        add(action("Duplicate Project…") { duplicateSelected() })
         add(action("Edit Tags…") { editTagsSelected() })
         add(object : ContextAction() {
             override fun update(e: AnActionEvent) { super.update(e); e.presentation.text = if (selected()?.favorite == true) "Remove from Favorites" else "Add to Favorites" }
@@ -644,6 +646,23 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
             }
             manager.updateProject(item.id, dialog.projectName, dialog.tags, dialog.favorite)
         }) { refresh(it.id) }
+    }
+    private fun duplicateSelected() {
+        val item = selected() ?: return
+        ProjectUiSupport.runInBackground(project, "Duplicate project", {
+            ProjectDirectoryDuplicator.duplicate(item.path)
+        }) { duplicatedPath ->
+            val dialog = ProjectEditDialog(
+                project,
+                duplicatedPath,
+                allowPathSelection = false,
+                initialTags = item.tags,
+                initialFavorite = item.favorite,
+            )
+            if (dialog.showAndGet()) ProjectUiSupport.runInBackground(project, "Save duplicated project", {
+                manager.saveProject(dialog.projectName, duplicatedPath, dialog.tags, dialog.favorite)
+            }) { refresh(it.id) }
+        }
     }
     private fun editTagsSelected() {
         val item = selected() ?: return
