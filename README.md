@@ -22,7 +22,7 @@ Project Atlas 是一个原生 IntelliJ IDEA 插件，用于保存、分类、搜
 GRADLE_USER_HOME=/Users/seven/.gradle ./gradlew --offline clean build
 ```
 
-插件包生成于 `build/distributions/project-manager-*.zip`。
+插件包生成于 `build/distributions/project-atlas-*.zip`。
 
 ## 使用方式
 
@@ -37,7 +37,7 @@ GRADLE_USER_HOME=/Users/seven/.gradle ./gradlew --offline clean build
 7. 填入插件仓库地址：
 
    ```text
-   https://hyxf.github.io/project-manager/updatePlugins.xml
+   https://hyxf.github.io/project-atlas/updatePlugins.xml
    ```
 
 8. 确认并保存。
