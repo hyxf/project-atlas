@@ -45,6 +45,9 @@ class ProjectImportPreviewDialog(
         var favorite: Boolean,
         val existing: Boolean,
         val recognized: Boolean,
+        val initialName: String = name,
+        val initialTags: String = tags,
+        val initialFavorite: Boolean = favorite,
     )
 
     private class ScanRequest(val generation: Int, val roots: List<Path>, val depth: Int) {
@@ -64,11 +67,11 @@ class ProjectImportPreviewDialog(
 
     private val rows = mutableListOf<Row>()
     private val roots = mutableListOf<Path>()
-    private val updateExisting = JBCheckBox("Include projects already in Project Atlas")
+    private val updateExisting = JBCheckBox("Update existing")
     private val model = ImportTableModel()
     private val table = JBTable(model)
     private val bulkTags = JBTextField()
-    private val rootsLabel = JBLabel("No folders selected")
+    private val rootsLabel = JBLabel("Choose folders to scan")
     private val scanDepth = ComboBox((MIN_SCAN_DEPTH..MAX_SCAN_DEPTH).toList().toTypedArray()).apply {
         selectedItem = DEFAULT_SCAN_DEPTH
     }
@@ -77,8 +80,8 @@ class ProjectImportPreviewDialog(
         isVisible = false
         preferredSize = Dimension(JBUI.scale(90), JBUI.scale(4))
     }
-    private val scanningLabel = JBLabel("Choose folders to find projects")
-    private val resultSummary = JBLabel("No projects found yet")
+    private val scanningLabel = JBLabel()
+    private val resultSummary = JBLabel("0 projects")
     private val cancelScan = JButton("Stop").apply {
         isVisible = false
         addActionListener { activeScan?.cancel() }
@@ -142,7 +145,7 @@ class ProjectImportPreviewDialog(
         }
 
     override fun createCenterPanel(): JComponent = JPanel(BorderLayout(0, JBUI.scale(12))).apply {
-        preferredSize = Dimension(960, 520)
+        preferredSize = Dimension(880, 480)
         border = JBUI.Borders.emptyTop(4)
         add(createSourcePanel(), BorderLayout.NORTH)
         add(JPanel(BorderLayout(0, JBUI.scale(6))).apply {
@@ -152,20 +155,17 @@ class ProjectImportPreviewDialog(
         }, BorderLayout.CENTER)
     }
 
-    private fun createSourcePanel() = JPanel(BorderLayout(0, JBUI.scale(8))).apply {
-        add(JBLabel("<html>Select one or more folders. Project Atlas will find local projects and let you review them before importing.</html>"), BorderLayout.NORTH)
+    private fun createSourcePanel() = JPanel(BorderLayout(0, JBUI.scale(6))).apply {
         add(JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
-            border = JBUI.Borders.emptyTop(8)
-            add(JBLabel("Scan locations:"), BorderLayout.WEST)
+            add(JButton("Choose Folders…").apply { addActionListener { chooseFolders() } }, BorderLayout.WEST)
             add(rootsLabel, BorderLayout.CENTER)
-            add(JButton("Choose Folders…").apply { addActionListener { chooseFolders() } }, BorderLayout.EAST)
-        }, BorderLayout.CENTER)
-        add(JPanel(BorderLayout()).apply {
-            add(JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0)).apply {
-                add(JBLabel("Folder depth:"))
+            add(JPanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(6), 0)).apply {
+                add(JBLabel("Depth"))
                 add(scanDepth)
                 add(updateExisting)
-            }, BorderLayout.WEST)
+            }, BorderLayout.EAST)
+        }, BorderLayout.NORTH)
+        add(JPanel(BorderLayout()).apply {
             add(JPanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(6), 0)).apply {
                 add(scanProgress)
                 add(scanningLabel)
@@ -183,7 +183,7 @@ class ProjectImportPreviewDialog(
         depthRescanTimer.stop()
         roots.clear()
         roots.addAll(selected.distinct())
-        rootsLabel.text = if (roots.size == 1) roots.single().toString() else "${roots.size} folders selected"
+        rootsLabel.text = if (roots.size == 1) roots.single().toString() else "${roots.size} folders"
         rootsLabel.toolTipText = roots.joinToString("<br>", "<html>", "</html>")
         scanProjects()
     }
@@ -258,8 +258,7 @@ class ProjectImportPreviewDialog(
         scanFeedbackTimer.stop()
         scanProgress.isVisible = false
         cancelScan.isVisible = false
-        scanningLabel.text = status ?: "Found ${rows.size} project${if (rows.size == 1) "" else "s"}"
-        resultSummary.text = "${rows.size} found · ${rows.count(Row::selected)} selected"
+        scanningLabel.text = status.orEmpty()
         updateImportAction()
     }
 
@@ -284,9 +283,9 @@ class ProjectImportPreviewDialog(
     private fun createSelectionActions() = JPanel(BorderLayout()).apply {
         add(resultSummary, BorderLayout.WEST)
         add(JPanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(4), 0)).apply {
-            add(JButton("Select Suggested").apply { addActionListener { selectRows { !it.existing && it.recognized } } })
-            add(JButton("Select All").apply { addActionListener { selectRows { !it.existing || updateExisting.isSelected } } })
-            add(JButton("Clear Selection").apply { addActionListener { selectRows { false } } })
+            add(JButton("Suggested").apply { addActionListener { selectRows { !it.existing && it.recognized } } })
+            add(JButton("All").apply { addActionListener { selectRows { !it.existing || updateExisting.isSelected } } })
+            add(JButton("None").apply { addActionListener { selectRows { false } } })
         }, BorderLayout.EAST)
     }
 
@@ -298,8 +297,7 @@ class ProjectImportPreviewDialog(
 
     private fun updateImportAction(scanning: Boolean = activeScan != null) {
         val selectedCount = rows.count(Row::selected)
-        resultSummary.text = if (rows.isEmpty()) "No projects found yet" else
-            "${rows.size} project${if (rows.size == 1) "" else "s"} found · $selectedCount selected"
+        resultSummary.text = "${rows.size} project${if (rows.size == 1) "" else "s"} · $selectedCount selected"
         setOKButtonText(if (selectedCount == 0) "Import" else
             "Import $selectedCount Project${if (selectedCount == 1) "" else "s"}")
         setOKActionEnabled(!scanning && selectedCount > 0)
@@ -307,13 +305,14 @@ class ProjectImportPreviewDialog(
 
     private fun createBulkActions() = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0)).apply {
         border = JBUI.Borders.emptyTop(2)
-        add(JBLabel("Apply to selected:"))
-        bulkTags.emptyText.text = "Tags, separated by commas"
-        bulkTags.columns = 18
+        add(JBLabel("Selected:"))
+        bulkTags.emptyText.text = "Tags"
+        bulkTags.columns = 16
         add(bulkTags)
         add(JButton("Add Tags").apply { addActionListener { addTagsToSelected() } })
-        add(JButton("Mark as Favorite").apply { addActionListener { setFavoriteForSelected(true) } })
-        add(JButton("Remove Favorite").apply { addActionListener { setFavoriteForSelected(false) } })
+        add(JButton("Favorite").apply { addActionListener { setFavoriteForSelected(true) } })
+        add(JButton("Unfavorite").apply { addActionListener { setFavoriteForSelected(false) } })
+        add(JButton("Reset").apply { addActionListener { resetSelected() } })
     }
 
     private fun addTagsToSelected() {
@@ -333,8 +332,19 @@ class ProjectImportPreviewDialog(
         updateImportAction()
     }
 
+    private fun resetSelected() {
+        rows.filter(Row::selected).forEach { row ->
+            row.name = row.initialName
+            row.tags = row.initialTags
+            row.favorite = row.initialFavorite
+        }
+        bulkTags.text = ""
+        model.fireTableDataChanged()
+        updateImportAction()
+    }
+
     private inner class ImportTableModel : AbstractTableModel() {
-        private val columns = arrayOf("Select", "Project Name", "Location", "Tags", "Favorite", "Import Status")
+        private val columns = arrayOf("", "Name", "Location", "Tags", "Favorite", "Status")
         override fun getRowCount() = rows.size
         override fun getColumnCount() = columns.size
         override fun getColumnName(column: Int) = columns[column]
@@ -350,10 +360,10 @@ class ProjectImportPreviewDialog(
                 3 -> row.tags
                 4 -> row.favorite
                 else -> when {
-                    row.existing && updateExisting.isSelected -> "Ready to update"
-                    row.existing -> "Already imported"
-                    row.recognized -> "Ready to import"
-                    else -> "Project type not detected"
+                    row.existing && updateExisting.isSelected -> "Update"
+                    row.existing -> "Existing"
+                    row.recognized -> "Ready"
+                    else -> "Unknown"
                 }
             }
         }
