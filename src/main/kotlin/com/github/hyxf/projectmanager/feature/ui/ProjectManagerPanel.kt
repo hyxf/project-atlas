@@ -3,6 +3,7 @@ package com.github.hyxf.projectmanager.feature.ui
 import com.github.hyxf.projectmanager.ProjectManagerIcons
 import com.github.hyxf.projectmanager.feature.project.ProjectItem
 import com.github.hyxf.projectmanager.feature.project.ProjectManagerService
+import com.github.hyxf.projectmanager.infrastructure.filesystem.ProjectDirectoryDeletion
 import com.github.hyxf.projectmanager.infrastructure.filesystem.ProjectDirectoryDuplicator
 import com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore
 import com.github.hyxf.projectmanager.settings.ProjectManagerConfigurable
@@ -594,6 +595,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         add(action("Locate Missing Project…", {
             selected()?.let { ProjectPathStatusCache.isDirectory(it.path) == false } == true
         }) { locateSelected() }); addSeparator()
+        add(action("Delete Project…") { deleteSelected() })
         add(action("Remove from Project Atlas…") { removeSelected() })
     }
 
@@ -685,6 +687,50 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         if (Messages.showYesNoDialog(project, "Remove ${item.name} from Project Atlas?\nThe directory will not be deleted.",
                 "Remove Project", Messages.getQuestionIcon()) == Messages.YES) {
             ProjectUiSupport.runInBackground(project, "Remove project", { manager.removeProject(item.id) }) { refresh() }
+        }
+    }
+    private fun deleteSelected() {
+        val item = selected() ?: return
+        if (isCurrentProject(item)) {
+            ProjectUiSupport.notify(project, "Close this project before deleting it.", NotificationType.WARNING)
+            return
+        }
+        val dialog = DeleteProjectDialog(project, item)
+        if (!dialog.showAndGet()) return
+        val deleteDirectly = dialog.deleteDirectly
+
+        ProjectUiSupport.runInBackground(project, "Remove project entry", {
+            manager.removeProject(item.id)
+        }) {
+            refresh()
+            deleteProjectDirectory(item, deleteDirectly)
+        }
+    }
+    private fun deleteProjectDirectory(item: ProjectItem, deleteDirectly: Boolean) {
+        ProjectUiSupport.runInBackground(project, "Delete project directory", {
+            val directoryExisted = java.nio.file.Files.exists(item.path)
+            if (directoryExisted) try {
+                if (deleteDirectly) ProjectDirectoryDeletion.deleteDirectly(item.path)
+                else ProjectDirectoryDeletion.moveToTrash(item.path)
+            } catch (error: Exception) {
+                val solution = if (deleteDirectly) {
+                    "Direct deletion failed and some contents may already be deleted. Close programs using the project, " +
+                        "check permissions, then delete the remaining directory manually. " +
+                        "The Project Atlas entry has already been removed."
+                } else {
+                    "Could not move the project to Trash. Close programs using it, check permissions, and try again. " +
+                        "Move or delete the directory manually. The Project Atlas entry has already been removed."
+                }
+                throw IllegalStateException(solution, error)
+            }
+            directoryExisted
+        }) { directoryExisted ->
+            val message = when {
+                !directoryExisted -> "The directory was already missing."
+                deleteDirectly -> "${item.name} was deleted permanently."
+                else -> "${item.name} was moved to Trash."
+            }
+            ProjectUiSupport.notify(project, message, NotificationType.INFORMATION)
         }
     }
     private fun toggleFavoriteSelected() {
