@@ -19,6 +19,7 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
+import java.awt.BasicStroke
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Component
@@ -218,7 +219,7 @@ private class ProjectManagerWelcomePanel(
             } else {
                 JBColor.GRAY
             }
-            iconLabel.icon = ProjectInitialIcon(projectInitial(value.name), isSelected)
+            iconLabel.icon = ProjectInitialIcon(projectInitial(value.name), isSelected, cellHasFocus)
             toolTipText = pathLabel.text
             return this
         }
@@ -234,6 +235,7 @@ private class ProjectManagerWelcomePanel(
     private class ProjectInitialIcon(
         private val initial: String,
         private val selected: Boolean,
+        private val focused: Boolean,
     ) : Icon {
         private val size = JBUI.scale(28)
 
@@ -245,15 +247,23 @@ private class ProjectManagerWelcomePanel(
             val graphics2D = graphics.create() as Graphics2D
             graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
             graphics2D.color = if (selected) {
-                UIUtil.getListSelectionForeground(true)
+                UIUtil.getListSelectionForeground(focused)
             } else {
-                JBColor.namedColor("ProjectManager.ProjectIcon.background", JBColor(0xD9E7F7, 0x3B526B))
+                JBColor.namedColor("ProjectManager.ProjectIcon.background", JBColor(0xD9E7F7, 0x365C83))
             }
             graphics2D.fillRoundRect(x, y, size, size, JBUI.scale(7), JBUI.scale(7))
+            if (!selected) {
+                graphics2D.color = JBColor.namedColor(
+                    "ProjectManager.ProjectIcon.borderColor",
+                    JBColor(0x9AB8D6, 0x78A9D4),
+                )
+                graphics2D.stroke = BasicStroke(JBUI.scale(1).toFloat())
+                graphics2D.drawRoundRect(x, y, size - 1, size - 1, JBUI.scale(7), JBUI.scale(7))
+            }
             graphics2D.color = if (selected) {
-                UIUtil.getListSelectionBackground(true)
+                UIUtil.getListSelectionBackground(focused)
             } else {
-                JBColor.namedColor("ProjectManager.ProjectIcon.foreground", JBColor(0x245A91, 0xD8E9FA))
+                JBColor.namedColor("ProjectManager.ProjectIcon.foreground", JBColor(0x245A91, 0xF2F7FC))
             }
             graphics2D.font = component.font.deriveFont(Font.BOLD, JBUI.scale(13).toFloat())
             val metrics = graphics2D.fontMetrics
