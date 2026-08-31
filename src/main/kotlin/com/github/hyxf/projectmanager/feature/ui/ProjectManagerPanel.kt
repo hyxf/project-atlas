@@ -8,6 +8,7 @@ import com.github.hyxf.projectmanager.infrastructure.filesystem.ProjectDirectory
 import com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore
 import com.github.hyxf.projectmanager.settings.ProjectManagerConfigurable
 import com.github.hyxf.projectmanager.settings.ProjectManagerSettings
+import com.github.hyxf.projectmanager.settings.ProjectManagerSettingsListener
 import com.intellij.icons.AllIcons
 import com.intellij.ide.actions.RevealFileAction
 import com.intellij.notification.NotificationType
@@ -71,6 +72,8 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     private var viewMode = settings.state.viewMode
     private var listFilter = settings.state.listFilter
     private var sortBy = settings.state.sortBy
+    private var tagProjectSpacing = settings.state.tagProjectSpacing
+    private var listProjectSpacing = settings.state.listProjectSpacing
     private val excludedTagFilters = linkedSetOf<String>()
     private val projectModel = DefaultListModel<ProjectItem>()
     private val projectListGroups = mutableListOf<String>()
@@ -91,6 +94,14 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     }
 
     init {
+        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+            ProjectManagerSettingsListener.TOPIC,
+            ProjectManagerSettingsListener { value ->
+                ApplicationManager.getApplication().invokeLater {
+                    if (!project.isDisposed) applySettings(value)
+                }
+            },
+        )
         searchAction.registerCustomShortcutSet(
             CustomShortcutSet(KeyStroke.getKeyStroke(
                 KeyEvent.VK_P,
@@ -197,8 +208,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     ) {
         override fun actionPerformed(e: AnActionEvent) {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, ProjectManagerConfigurable::class.java)
-            projectList.revalidate()
-            projectList.repaint()
         }
 
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -349,7 +358,18 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         projectList.selectionMode = ListSelectionModel.SINGLE_SELECTION
         val projectRenderer = ProjectListCellRenderer(project, showTags = false)
         projectList.cellRenderer = javax.swing.ListCellRenderer { list, value, index, selected, hasFocus ->
-            val item = projectRenderer.getListCellRendererComponent(list, value, index, selected, hasFocus)
+            val renderedItem = projectRenderer.getListCellRendererComponent(list, value, index, selected, hasFocus)
+            val item = JPanel(BorderLayout()).apply {
+                isOpaque = true
+                background = list.background
+                border = JBUI.Borders.empty(
+                    listProjectSpacing / 2,
+                    0,
+                    listProjectSpacing - listProjectSpacing / 2,
+                    0,
+                )
+                add(renderedItem, BorderLayout.CENTER)
+            }
             val group = projectListGroups.getOrNull(index)
             val startsGroup = index == 0 || group != projectListGroups.getOrNull(index - 1)
             if (!startsGroup || group == null) {
@@ -381,11 +401,22 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         PopupHandler.installPopupMenu(projectList, contextActions(), "ProjectManager.ContextMenu")
         projectTree.isRootVisible = false
         projectTree.showsRootHandles = true
+        projectTree.rowHeight = 0
         projectTree.cellRenderer = object : ColoredTreeCellRenderer() {
             override fun customizeCellRenderer(tree: JTree, value: Any?, selected: Boolean, expanded: Boolean,
                                                leaf: Boolean, row: Int, hasFocus: Boolean) {
                 val item = (value as? DefaultMutableTreeNode)?.userObject
                 icon = null
+                border = if (item is ProjectItem) {
+                    JBUI.Borders.empty(
+                        tagProjectSpacing / 2,
+                        0,
+                        tagProjectSpacing - tagProjectSpacing / 2,
+                        0,
+                    )
+                } else {
+                    JBUI.Borders.empty()
+                }
                 when (item) {
                     is ProjectItem -> {
                         val current = isCurrentProject(item)
@@ -428,11 +459,15 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     }
 
     fun reloadFromStore() {
-        settings.state.let {
-            viewMode = it.viewMode
-            listFilter = it.listFilter
-            sortBy = it.sortBy
-        }
+        applySettings(settings.state)
+    }
+
+    private fun applySettings(value: ProjectManagerSettings.Data) {
+        viewMode = value.viewMode
+        listFilter = value.listFilter
+        sortBy = value.sortBy
+        tagProjectSpacing = value.tagProjectSpacing
+        listProjectSpacing = value.listProjectSpacing
         filterButtons.forEach { (filter, button) -> button.isSelected = filter == listFilter }
         refresh()
     }

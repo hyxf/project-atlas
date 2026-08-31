@@ -43,10 +43,16 @@ class ProjectJsonStoreTest {
         val directory = Files.createTempDirectory("project-manager-settings-test")
         val file = directory.resolve("project.json")
         ProjectJsonStore(file).replaceSettings(
-            ProjectJsonStore.SettingsData(selectedListFilter = "FAVORITES"),
+            ProjectJsonStore.SettingsData(
+                selectedListFilter = "FAVORITES",
+                tagProjectSpacing = 12,
+                listProjectSpacing = 8,
+            ),
         )
 
         assertEquals("FAVORITES", ProjectJsonStore(file).settings().selectedListFilter)
+        assertEquals(12, ProjectJsonStore(file).settings().tagProjectSpacing)
+        assertEquals(8, ProjectJsonStore(file).settings().listProjectSpacing)
     }
 
     @Test

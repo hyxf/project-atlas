@@ -38,6 +38,8 @@ class ProjectJsonStore() {
         var selectedFilter: String = "ALL",
         var selectedView: String = "LIST",
         var selectedListFilter: String = "ALL",
+        var tagProjectSpacing: Int = 4,
+        var listProjectSpacing: Int = 4,
     )
 
     private val logger = Logger.getInstance(ProjectJsonStore::class.java)
@@ -176,6 +178,8 @@ class ProjectJsonStore() {
             selectedFilter = settingsJson?.string("selectedFilter", "ALL") ?: "ALL",
             selectedView = settingsJson?.string("selectedView", "LIST") ?: "LIST",
             selectedListFilter = settingsJson?.string("selectedListFilter", "ALL") ?: "ALL",
+            tagProjectSpacing = settingsJson?.int("tagProjectSpacing", 4) ?: 4,
+            listProjectSpacing = settingsJson?.int("listProjectSpacing", 4) ?: 4,
         )
         val tags = (root.stringList("tags") + projects.flatMap { it.tags })
             .filter(String::isNotBlank).distinct().sorted().toMutableList()
@@ -231,6 +235,8 @@ class ProjectJsonStore() {
     private fun JsonObject.booleanOrNull(name: String) = runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull()
     private fun JsonObject.long(name: String, default: Long = 0) = longOrNull(name) ?: default
     private fun JsonObject.longOrNull(name: String) = runCatching { get(name)?.takeIf { !it.isJsonNull }?.asLong }.getOrNull()
+    private fun JsonObject.int(name: String, default: Int = 0) =
+        runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull() ?: default
     private fun JsonObject.stringList(name: String) = elements(name).mapNotNull {
         runCatching { it.takeIf { value -> value.isJsonPrimitive }?.asString }.getOrNull()
     }
