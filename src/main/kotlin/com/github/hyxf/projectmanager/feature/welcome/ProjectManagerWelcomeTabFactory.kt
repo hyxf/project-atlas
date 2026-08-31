@@ -23,6 +23,9 @@ import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
@@ -31,6 +34,7 @@ import javax.swing.AbstractAction
 import javax.swing.DefaultListModel
 import javax.swing.JComboBox
 import javax.swing.JComponent
+import javax.swing.Icon
 import javax.swing.JPanel
 import javax.swing.KeyStroke
 import javax.swing.ListCellRenderer
@@ -183,13 +187,19 @@ private class ProjectManagerWelcomePanel(
     private class ProjectItemRenderer : JPanel(BorderLayout()), ListCellRenderer<ProjectItem> {
         private val nameLabel = JBLabel()
         private val pathLabel = JBLabel()
+        private val iconLabel = JBLabel()
+        private val details = JPanel(BorderLayout())
 
         init {
             border = JBUI.Borders.empty(10, 12)
             nameLabel.font = nameLabel.font.deriveFont(Font.BOLD)
             pathLabel.border = JBUI.Borders.emptyTop(6)
-            add(nameLabel, BorderLayout.NORTH)
-            add(pathLabel, BorderLayout.SOUTH)
+            details.isOpaque = false
+            details.add(nameLabel, BorderLayout.NORTH)
+            details.add(pathLabel, BorderLayout.SOUTH)
+            iconLabel.border = JBUI.Borders.emptyRight(10)
+            add(iconLabel, BorderLayout.WEST)
+            add(details, BorderLayout.CENTER)
         }
 
         override fun getListCellRendererComponent(
@@ -208,8 +218,49 @@ private class ProjectManagerWelcomePanel(
             } else {
                 JBColor.GRAY
             }
+            iconLabel.icon = ProjectInitialIcon(projectInitial(value.name), isSelected)
             toolTipText = pathLabel.text
             return this
+        }
+
+        private fun projectInitial(name: String): String {
+            val trimmedName = name.trim()
+            if (trimmedName.isEmpty()) return "?"
+            val firstCharacterEnd = trimmedName.offsetByCodePoints(0, 1)
+            return trimmedName.substring(0, firstCharacterEnd).uppercase()
+        }
+    }
+
+    private class ProjectInitialIcon(
+        private val initial: String,
+        private val selected: Boolean,
+    ) : Icon {
+        private val size = JBUI.scale(28)
+
+        override fun getIconWidth(): Int = size
+
+        override fun getIconHeight(): Int = size
+
+        override fun paintIcon(component: Component, graphics: Graphics, x: Int, y: Int) {
+            val graphics2D = graphics.create() as Graphics2D
+            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            graphics2D.color = if (selected) {
+                UIUtil.getListSelectionForeground(true)
+            } else {
+                JBColor.namedColor("ProjectManager.ProjectIcon.background", JBColor(0xD9E7F7, 0x3B526B))
+            }
+            graphics2D.fillRoundRect(x, y, size, size, JBUI.scale(7), JBUI.scale(7))
+            graphics2D.color = if (selected) {
+                UIUtil.getListSelectionBackground(true)
+            } else {
+                JBColor.namedColor("ProjectManager.ProjectIcon.foreground", JBColor(0x245A91, 0xD8E9FA))
+            }
+            graphics2D.font = component.font.deriveFont(Font.BOLD, JBUI.scale(13).toFloat())
+            val metrics = graphics2D.fontMetrics
+            val textX = x + (size - metrics.stringWidth(initial)) / 2
+            val textY = y + (size - metrics.height) / 2 + metrics.ascent
+            graphics2D.drawString(initial, textX, textY)
+            graphics2D.dispose()
         }
     }
 
