@@ -1,0 +1,6 @@
+interface:
+  display_name: "Generate Commit Message"
+  short_description: "Analyze Git changes and draft a compliant commit message"
+  default_prompt: "Use $generate-commit-message to analyze the current Git changes and propose a commit message."
+policy:
+  allow_implicit_invocation: false

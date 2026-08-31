@@ -1,0 +1,50 @@
+<idea-plugin>
+    <id>com.github.hyxf.project-manager</id>
+    <name>Project Atlas</name>
+    <vendor email="xchao887@gmail.com">hyxf</vendor>
+
+    <description><![CDATA[
+    <h2>Project Atlas</h2>
+    <p>Save, organize, search, and quickly open IntelliJ IDEA projects.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore"/>
+        <applicationService serviceInterface="com.github.hyxf.projectmanager.feature.project.ProjectRepository"
+                            serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.PersistentProjectRepository"/>
+        <applicationService serviceInterface="com.github.hyxf.projectmanager.feature.tag.TagRepository"
+                            serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.PersistentTagRepository"/>
+        <applicationService serviceImplementation="com.github.hyxf.projectmanager.feature.project.ProjectManagerService"/>
+        <applicationService serviceImplementation="com.github.hyxf.projectmanager.settings.ProjectManagerSettings"/>
+        <toolWindow id="Project Atlas" anchor="left"
+                    factoryClass="com.github.hyxf.projectmanager.feature.ui.ProjectManagerToolWindowFactory"
+                    icon="/icons/projectManager.svg"/>
+        <applicationConfigurable id="com.github.hyxf.projectmanager.settings"
+                                 displayName="Project Atlas"
+                                 parentId="tools"
+                                 instance="com.github.hyxf.projectmanager.settings.ProjectManagerConfigurable"/>
+        <postStartupActivity implementation="com.github.hyxf.projectmanager.feature.recent.ProjectOpenedActivity"/>
+        <welcomeTabFactory id="ProjectManagerWelcomeTab"
+                           implementation="com.github.hyxf.projectmanager.feature.welcome.ProjectManagerWelcomeTabFactory"
+                           order="after ProjectsWelcomeTab, before CustomizeWelcomeTab"/>
+        <notificationGroup
+                id="ProjectManager"
+                displayType="BALLOON"
+                isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <group id="ProjectManager.Actions" text="Project Atlas" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="ProjectManager.OpenProject" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectAction" text="Open Project..."/>
+            <action id="ProjectManager.OpenProjectNewWindow" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectInNewWindowAction" text="Open Project in New Window..."/>
+            <separator/>
+            <action id="ProjectManager.SaveCurrentProject" class="com.github.hyxf.projectmanager.feature.action.SaveCurrentProjectAction" text="Save Current Project..."/>
+            <action id="ProjectManager.AddProject" class="com.github.hyxf.projectmanager.feature.action.AddProjectAction" text="Add Project..."/>
+            <action id="ProjectManager.ImportProjects" class="com.github.hyxf.projectmanager.feature.action.ImportProjectsAction" text="Import Local Projects..."/>
+            <action id="ProjectManager.RefreshProjects" class="com.github.hyxf.projectmanager.feature.action.RefreshProjectsAction" text="Refresh Projects"/>
+            <action id="ProjectManager.OpenToolWindow" class="com.github.hyxf.projectmanager.feature.action.OpenProjectManagerAction" text="Open Project Atlas"/>
+        </group>
+    </actions>
+</idea-plugin>

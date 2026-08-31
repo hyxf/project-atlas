@@ -1,0 +1,82 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Extract Version
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Plugin
+        run: ./gradlew buildPlugin -PpluginVersion=${{ env.VERSION }}
+
+      - name: Normalize ZIP name
+        run: |
+          mkdir release
+          FILE=$(ls build/distributions/*.zip | head -n 1)
+          cp "$FILE" release/plugin.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ env.VERSION }}
+          generate_release_notes: true
+          files: release/plugin.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ✅ 安全生成 XML（不会触发 YAML 语法错误）
+      - name: Generate updatePlugins.xml
+        run: |
+          mkdir site
+          REPO=${{ github.repository }}
+          URL="https://github.com/$REPO/releases/download/v${{ env.VERSION }}/plugin.zip"
+
+          printf '%s\n' \
+          '<plugins>' \
+          '  <plugin id="com.github.hyxf.project-manager"' \
+          "          url=\"$URL\"" \
+          "          version=\"${{ env.VERSION }}\">" \
+          '    <name>Project Atlas</name>' \
+          '    <vendor>hyxf</vendor>' \
+          '    <description>Save, organize, search, and quickly open IntelliJ IDEA projects.</description>' \
+          '  </plugin>' \
+          '</plugins>' > site/updatePlugins.xml
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          if-no-files-found: error
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
