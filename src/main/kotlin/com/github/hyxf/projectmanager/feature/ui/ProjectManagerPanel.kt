@@ -44,20 +44,16 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
 import java.awt.CardLayout
-import java.awt.FlowLayout
+import java.awt.Dimension
 import java.awt.Font
-import java.awt.Graphics
-import java.awt.Graphics2D
-import java.awt.RenderingHints
 import java.awt.datatransfer.StringSelection
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
 import javax.swing.AbstractAction
-import javax.swing.ButtonGroup
 import javax.swing.DefaultListModel
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.JToggleButton
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
 import javax.swing.tree.DefaultMutableTreeNode
@@ -80,7 +76,30 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     }
     private val projectTree = Tree()
     private val projectCards = JPanel(CardLayout())
-    private val filterButtons = mutableMapOf<ProjectManagerSettings.ListFilter, JToggleButton>()
+    private val listFilterComboBox = object : JComboBox<String>(arrayOf("all", "recent", "favorites")) {
+        override fun getPreferredSize(): Dimension {
+            val defaultSize = super.getPreferredSize()
+            val comboFont = font ?: return defaultSize
+            val textWidth = (0 until itemCount).maxOf { getFontMetrics(comboFont).stringWidth(getItemAt(it)) }
+            return Dimension(textWidth + JBUI.scale(40), defaultSize.height)
+        }
+    }.apply {
+        selectedIndex = listFilter.ordinal
+        isEnabled = viewMode == ProjectManagerSettings.ViewMode.LIST
+        isFocusable = false
+        addActionListener {
+            val selectedFilter = ProjectManagerSettings.ListFilter.values()[selectedIndex]
+            if (listFilter != selectedFilter) {
+                listFilter = selectedFilter
+                ProjectUiSupport.runInBackground(
+                    project,
+                    "Save list filter",
+                    { settings.updateListFilter(selectedFilter) },
+                )
+                refreshProjects(null)
+            }
+        }
+    }
     private val status = JBLabel()
     init {
         ApplicationManager.getApplication().messageBus.connect(project).subscribe(
@@ -138,6 +157,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         }.component
         return JPanel(BorderLayout()).apply {
             border = JBUI.Borders.empty(2, 4)
+            add(listFilterComboBox, BorderLayout.WEST)
             add(actionToolbar, BorderLayout.CENTER)
         }
     }
@@ -226,94 +246,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
             add(status.apply { border = JBUI.Borders.empty(4, 8) }, BorderLayout.SOUTH)
         }
 
-    private fun createListView() = JPanel(BorderLayout()).apply {
-        add(createListFilterBar(), BorderLayout.NORTH)
-        add(JBScrollPane(projectList), BorderLayout.CENTER)
-    }
-
-    private fun createListFilterBar(): JComponent {
-        val group = ButtonGroup()
-        return JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
-            border = JBUI.Borders.empty(2, 4)
-            isOpaque = false
-            ProjectManagerSettings.ListFilter.values().forEach { filter ->
-                val button = FilterToggleButton(filter.displayName).apply {
-                    isFocusable = false
-                    isSelected = listFilter == filter
-                    addActionListener {
-                        if (isSelected && listFilter != filter) {
-                            listFilter = filter
-                            ProjectUiSupport.runInBackground(
-                                project,
-                                "Save list filter",
-                                { settings.updateListFilter(filter) },
-                            )
-                            refreshProjects(null)
-                        }
-                    }
-                }
-                group.add(button)
-                filterButtons[filter] = button
-                add(button)
-            }
-        }
-    }
-
-    private class FilterToggleButton(text: String) : JToggleButton(text) {
-        private val selectedForeground = JBColor.namedColor(
-            "Link.activeForeground",
-            JBColor(0x3574F0, 0x589DF6),
-        )
-        private val hoverBackground = JBColor.namedColor(
-            "ActionButton.hoverBackground",
-            JBColor(0xE8E8E8, 0x45494A),
-        )
-
-        init {
-            isOpaque = false
-            isContentAreaFilled = false
-            isBorderPainted = false
-            isRolloverEnabled = true
-            border = JBUI.Borders.empty(1, 6, 3, 6)
-            addItemListener { updateStyle() }
-            updateStyle()
-        }
-
-        private fun updateStyle() {
-            foreground = if (isSelected) {
-                selectedForeground
-            } else {
-                JBColor.namedColor("Label.foreground", JBColor.foreground())
-            }
-            font = font.deriveFont(if (isSelected) Font.BOLD else Font.PLAIN)
-            repaint()
-        }
-
-        override fun paintComponent(graphics: Graphics) {
-            if (model.isRollover) {
-                val graphics2D = graphics.create() as Graphics2D
-                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                graphics2D.color = hoverBackground
-                val arc = JBUI.scale(6)
-                graphics2D.fillRoundRect(0, 0, width, height, arc, arc)
-                graphics2D.dispose()
-            }
-            super.paintComponent(graphics)
-            if (isSelected) {
-                val graphics2D = graphics.create() as Graphics2D
-                graphics2D.color = selectedForeground
-                graphics2D.fillRoundRect(
-                    JBUI.scale(4),
-                    height - JBUI.scale(2),
-                    width - JBUI.scale(8),
-                    JBUI.scale(2),
-                    JBUI.scale(2),
-                    JBUI.scale(2),
-                )
-                graphics2D.dispose()
-            }
-        }
-    }
+    private fun createListView() = JBScrollPane(projectList)
 
     private fun configureProjects() {
         projectList.selectionMode = ListSelectionModel.SINGLE_SELECTION
@@ -429,7 +362,8 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         sortBy = value.sortBy
         tagProjectSpacing = value.tagProjectSpacing
         listProjectSpacing = value.listProjectSpacing
-        filterButtons.forEach { (filter, button) -> button.isSelected = filter == listFilter }
+        listFilterComboBox.selectedIndex = listFilter.ordinal
+        listFilterComboBox.isEnabled = viewMode == ProjectManagerSettings.ViewMode.LIST
         refresh()
     }
 
