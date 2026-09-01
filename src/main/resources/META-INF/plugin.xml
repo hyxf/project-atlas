@@ -54,7 +54,11 @@
             <action id="ProjectManager.AddProject" class="com.github.hyxf.projectmanager.feature.action.AddProjectAction" text="Add Project..."/>
             <action id="ProjectManager.ImportProjects" class="com.github.hyxf.projectmanager.feature.action.ImportProjectsAction" text="Import Local Projects..."/>
             <action id="ProjectManager.RefreshProjects" class="com.github.hyxf.projectmanager.feature.action.RefreshProjectsAction" text="Refresh Projects"/>
-            <action id="ProjectManager.OpenToolWindow" class="com.github.hyxf.projectmanager.feature.action.OpenProjectManagerAction" text="Open Project Atlas"/>
+            <action id="ProjectManager.OpenToolWindow" class="com.github.hyxf.projectmanager.feature.action.OpenProjectManagerAction"
+                    text="Show Project Atlas" description="Show or hide the Project Atlas tool window">
+                <keyboard-shortcut keymap="$default" first-keystroke="control shift COMMA"/>
+                <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift COMMA"/>
+            </action>
         </group>
     </actions>
 </idea-plugin>

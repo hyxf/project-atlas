@@ -168,6 +168,17 @@ class RefreshProjectsAction : ProjectManagerAction() {
 
 class OpenProjectManagerAction : ProjectManagerAction() {
     override fun actionPerformed(e: AnActionEvent) {
-        e.project?.let { ToolWindowManager.getInstance(it).getToolWindow("Project Atlas")?.show() }
+        val project = e.project ?: return
+        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Project Atlas") ?: return
+        if (toolWindow.isVisible) toolWindow.hide() else toolWindow.show()
     }
+
+    override fun update(e: AnActionEvent) {
+        val toolWindow = e.project?.let { ToolWindowManager.getInstance(it).getToolWindow("Project Atlas") }
+        e.presentation.isEnabled = toolWindow != null
+        e.presentation.text = if (toolWindow?.isVisible == true) "Hide Project Atlas" else "Show Project Atlas"
+        e.presentation.description = "Show or hide the Project Atlas tool window"
+    }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.EDT
 }
