@@ -98,8 +98,41 @@ open class QuickOpenProjectAction(private val newWindow: Boolean = false) : Proj
                     } else if (ProjectPathStatusCache.isDirectory(value.path) == null) {
                         ProjectPathStatusCache.refresh(value.path) { list.repaint() }
                     }
-                    append("  ${value.path}", SimpleTextAttributes(SimpleTextAttributes.STYLE_SMALLER, JBColor.GRAY))
-                    if (value.tags.isNotEmpty()) append("  ${value.tags.sorted().joinToString(" · ")}", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+                    val details = buildString {
+                        append("  ${value.path}")
+                        if (value.tags.isNotEmpty()) append("  ${value.tags.sorted().joinToString(" · ")}")
+                    }
+                    appendWithClipping(details) { component, graphics, availableWidth, text, _ ->
+                        val metrics = graphics.getFontMetrics(component.font)
+                        val ellipsis = "…"
+                        if (metrics.stringWidth(text) <= availableWidth) return@appendWithClipping text
+                        if (metrics.stringWidth(ellipsis) > availableWidth) return@appendWithClipping ""
+
+                        var low = 0
+                        var high = text.length
+                        while (low < high) {
+                            val middle = (low + high + 1) / 2
+                            if (metrics.stringWidth(text.substring(0, middle) + ellipsis) <= availableWidth) {
+                                low = middle
+                            } else {
+                                high = middle - 1
+                            }
+                        }
+                        text.substring(0, low).trimEnd() + ellipsis
+                    }
+                    iterator().apply {
+                        while (hasNext()) {
+                            next()
+                            if (!hasNext()) {
+                                setTextAttributes(SimpleTextAttributes(SimpleTextAttributes.STYLE_SMALLER, JBColor.GRAY))
+                            }
+                        }
+                    }
+                    toolTipText = buildString {
+                        append(value.name)
+                        append(" — ${value.path}")
+                        if (value.tags.isNotEmpty()) append(" — ${value.tags.sorted().joinToString(" · ")}")
+                    }
                 }
             })
             .setNamerForFiltering { "${it.name} ${it.path} ${it.tags.joinToString(" ")}" }
