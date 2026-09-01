@@ -39,6 +39,11 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="ProjectManager.OpenProject" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectAction" text="Open Project..."/>
             <action id="ProjectManager.OpenProjectNewWindow" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectInNewWindowAction" text="Open Project in New Window..."/>
+            <action id="ProjectManager.SearchProjects" class="com.github.hyxf.projectmanager.feature.action.SearchProjectsAction"
+                    text="Search Projects" description="Search saved projects">
+                <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
+                <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift P"/>
+            </action>
             <separator/>
             <action id="ProjectManager.SaveCurrentProject" class="com.github.hyxf.projectmanager.feature.action.SaveCurrentProjectAction" text="Save Current Project..."/>
             <action id="ProjectManager.AddProject" class="com.github.hyxf.projectmanager.feature.action.AddProjectAction" text="Add Project..."/>

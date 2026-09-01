@@ -21,7 +21,6 @@ import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.DataContext
-import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
@@ -52,7 +51,6 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.datatransfer.StringSelection
 import java.awt.event.ActionEvent
-import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import javax.swing.AbstractAction
 import javax.swing.ButtonGroup
@@ -84,15 +82,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
     private val projectCards = JPanel(CardLayout())
     private val filterButtons = mutableMapOf<ProjectManagerSettings.ListFilter, JToggleButton>()
     private val status = JBLabel()
-    private val searchAction = object : AnAction(
-        "Search Projects",
-        "Search saved projects",
-        AllIcons.Actions.Search,
-    ) {
-        override fun actionPerformed(e: AnActionEvent) = showSearch()
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
-    }
-
     init {
         ApplicationManager.getApplication().messageBus.connect(project).subscribe(
             ProjectManagerSettingsListener.TOPIC,
@@ -101,13 +90,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
                     if (!project.isDisposed) applySettings(value)
                 }
             },
-        )
-        searchAction.registerCustomShortcutSet(
-            CustomShortcutSet(KeyStroke.getKeyStroke(
-                KeyEvent.VK_P,
-                menuShortcutMask() or InputEvent.SHIFT_DOWN_MASK,
-            )),
-            this,
         )
         toolbar = createToolbar()
         setContent(createContent())
@@ -140,7 +122,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
             object : AnAction("Edit project.json", "Open the user-level project configuration", AllIcons.Actions.Edit) {
                 override fun actionPerformed(e: AnActionEvent) = editConfiguration()
             },
-            searchAction,
+            ActionManager.getInstance().getAction("ProjectManager.SearchProjects"),
             object : AnAction("Refresh", "Reload project.json", AllIcons.Actions.Refresh) {
                 override fun actionPerformed(e: AnActionEvent) = ProjectUiSupport.runInBackground(
                     project, "Refresh project.json", { service<ProjectJsonStore>().forceReload() }, { reloadFromStore() },
@@ -574,12 +556,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
                 return
             }
         }
-    }
-
-    private fun showSearch() = ProjectUiSupport.runInBackground(project, "Load projects", {
-        service<ProjectJsonStore>().forceReload()
-    }) {
-        ProjectSearchDialog(project) { item -> open(item, defaultNewWindow()) }.show()
     }
 
     private fun saveCurrentProject() {

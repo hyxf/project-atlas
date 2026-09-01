@@ -4,10 +4,12 @@ import com.github.hyxf.projectmanager.feature.project.ProjectItem
 import com.github.hyxf.projectmanager.feature.project.ProjectManagerService
 import com.github.hyxf.projectmanager.feature.ui.ProjectEditDialog
 import com.github.hyxf.projectmanager.feature.ui.ProjectManagerPanel
+import com.github.hyxf.projectmanager.feature.ui.ProjectSearchDialog
 import com.github.hyxf.projectmanager.feature.ui.ProjectUiSupport
 import com.github.hyxf.projectmanager.feature.ui.ProjectImportUi
 import com.github.hyxf.projectmanager.feature.ui.ProjectPathStatusCache
 import com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore
+import com.github.hyxf.projectmanager.settings.ProjectManagerSettings
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -114,6 +116,29 @@ open class QuickOpenProjectAction(private val newWindow: Boolean = false) : Proj
 }
 
 class QuickOpenProjectInNewWindowAction : QuickOpenProjectAction(true)
+
+class SearchProjectsAction : ProjectManagerAction() {
+    override fun getActionUpdateThread() = ActionUpdateThread.EDT
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+        ProjectUiSupport.runInBackground(project, "Load projects", {
+            service<ProjectJsonStore>().forceReload()
+        }) {
+            ProjectSearchDialog(project) { item ->
+                val currentPath = project.basePath?.let(Path::of)?.toAbsolutePath()?.normalize()
+                if (currentPath == item.path.toAbsolutePath().normalize()) return@ProjectSearchDialog
+                val newWindow = service<ProjectManagerSettings>().state.defaultOpenMode ==
+                    ProjectManagerSettings.OpenMode.NEW_WINDOW
+                if (ProjectUiSupport.open(item, project, newWindow)) {
+                    ProjectUiSupport.runInBackground(project, "Update recent project", {
+                        service.updateLastOpened(item.path)
+                    }) { refresh(project) }
+                }
+            }.show()
+        }
+    }
+}
 
 class RefreshProjectsAction : ProjectManagerAction() {
     override fun actionPerformed(e: AnActionEvent) = refresh(e.project)
