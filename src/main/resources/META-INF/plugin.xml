@@ -40,7 +40,7 @@
             <action id="ProjectManager.OpenProject" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectAction" text="Open Project..."/>
             <action id="ProjectManager.OpenProjectNewWindow" class="com.github.hyxf.projectmanager.feature.action.QuickOpenProjectInNewWindowAction" text="Open Project in New Window..."/>
             <action id="ProjectManager.SearchProjects" class="com.github.hyxf.projectmanager.feature.action.SearchProjectsAction"
-                    text="Search Projects" description="Search saved projects">
+                    text="Search Projects" description="Search saved projects" icon="AllIcons.Actions.Search">
                 <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
                 <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift P"/>
             </action>
