@@ -8,7 +8,7 @@
 
 ## 项目定位与技术栈
 
-本仓库是 Project Manager IntelliJ IDEA 插件，用于保存、分类、搜索和快速打开本地项目。项目使用 Kotlin 1.9.22、Java 17、Gradle Kotlin DSL、IntelliJ Platform Gradle Plugin 1.17.2；开发基线为 IntelliJ IDEA Community 2023.2（build 232），当前声明兼容至 `300.*`。应用数据通过 IntelliJ Persistent State API 与 JSON 存储持久化。
+本仓库是 Project Atlas（代码包名沿用 `projectmanager`）IntelliJ IDEA 插件，用于保存、分类、搜索、导入和快速打开本地项目。项目使用 Kotlin 2.2.20、Java 17、Gradle Kotlin DSL、IntelliJ Platform Gradle Plugin 2.11.0；开发与验证基线为 IntelliJ IDEA Community 2023.2（build 232）。`build.gradle.kts` 仅声明 `sinceBuild = 232`，没有声明 `untilBuild`。应用级数据由 `ProjectJsonStore` 以 JSON 保存至 `~/.project-manager/project.json`，不是 IntelliJ Persistent State 组件。
 
 ## 目录与架构
 
@@ -18,10 +18,11 @@
   - `action/`：Tools 菜单及快捷操作。
   - `ui/`：Tool Window、列表渲染、搜索与编辑对话框。
   - `recent/`：项目打开事件与最近访问时间维护。
-- `src/main/kotlin/com/github/hyxf/projectmanager/infrastructure/`：JSON 存储、持久化仓储和文件系统路径处理。
+  - `welcome/`：IDE 欢迎页中的已保存项目入口。
+- `src/main/kotlin/com/github/hyxf/projectmanager/infrastructure/`：JSON 存储、持久化仓储，以及路径规范化、项目扫描、目录复制和删除。
 - `src/main/kotlin/com/github/hyxf/projectmanager/settings/`：应用级设置及 Settings UI。
 - `src/main/resources/META-INF/plugin.xml`：服务、Tool Window、设置页、监听器、通知组和 Action 注册。
-- `src/test/kotlin/com/github/hyxf/projectmanager/`：业务服务与 JSON 存储测试。
+- `src/test/kotlin/com/github/hyxf/projectmanager/`：业务服务、JSON 存储、目录扫描/复制/删除和 UI 测试。
 - `.github/workflows/release.yml`：标签触发的插件构建、GitHub Release 和 GitHub Pages 更新源发布。
 
 典型数据流为：Action / Tool Window → `ProjectManagerService` → `ProjectRepository` / `TagRepository` → 持久化实现 → `ProjectJsonStore`。UI 只负责交互与展示，路径规范化、去重、搜索、排序和状态变更应优先放在服务或基础设施层。
@@ -30,16 +31,17 @@
 
 - Swing 组件只能在 EDT 创建或更新；文件 I/O、JSON 读写、目录扫描等耗时操作不得阻塞 EDT。
 - 使用 IntelliJ Platform 公共 API；避免依赖 SDK 内部实现或手工模拟其生命周期。
-- “从列表移除项目”不得删除磁盘目录。任何可能影响用户文件的能力都必须明确提示并单独确认。
+- 严格区分“Remove from Project Atlas”和“Delete Project”：前者只移除记录，不得删除磁盘目录；后者会移动到系统废纸篓或永久递归删除，必须保留明确确认、展示目标绝对路径，并禁止删除当前已打开项目和文件系统根目录。
+- 复制、删除、扫描、导入、打开 `project.json` 等文件 I/O 必须在后台任务或池化线程执行；完成后再切回 EDT 更新 Swing UI。
 - 项目路径比较前保持统一的绝对路径规范化规则；新增、迁移和重定位均须防止重复路径。
-- 持久化结构变化时保留 `schemaVersion` 迁移入口，并兼容既有用户数据；不要无提示丢弃未知或损坏数据。
+- 持久化结构变化时保留 `schemaVersion` 迁移入口，并兼容既有用户数据。写回时继续合并未知顶层、设置和项目字段；解析失败时保留最后一次有效数据并阻止写入，不得静默覆盖损坏文件。
 - 新增或移动 Service、Action、Tool Window、Configurable、Listener、通知组或其他扩展点时，同步核对 `plugin.xml`。
 - 错误应向用户提供可操作信息，并在适当位置记录诊断上下文；不得记录项目文件正文、密钥、令牌或剪贴板内容。
 - 保持改动聚焦，不夹带无关重构、格式化、依赖升级或生成文件。
 
 ## 构建与本地开发
 
-统一使用仓库内 Gradle Wrapper 和 JDK 17。本机已有缓存时优先离线运行：
+统一使用仓库内 Gradle Wrapper 和 JDK 17。本机已有缓存时优先离线运行。测试任务依赖 IntelliJ Platform 测试框架，首次运行可能需要下载 IDE 与依赖：
 
 ```bash
 GRADLE_USER_HOME=/Users/seven/.gradle ./gradlew --offline test
@@ -55,7 +57,7 @@ GRADLE_USER_HOME=/Users/seven/.gradle ./gradlew --offline clean build verifyPlug
 ./gradlew verifyPlugin
 ```
 
-`runIde` 用于交互式验证；`buildPlugin` 的产物位于 `build/distributions/`。离线构建因缓存缺失失败时，先说明缺失依赖，再决定是否联网；不要提交本机 JDK、代理、缓存或 IDE 配置。
+`runIde` 用于交互式验证；`buildPlugin` 的产物位于 `build/distributions/`。版本默认是 `1.0.0-SNAPSHOT`，发布流水线通过 `-PpluginVersion=<version>` 注入标签版本。离线构建因缓存缺失失败时，先说明缺失依赖，再决定是否联网；不要提交本机 JDK、代理、缓存或 IDE 配置。
 
 ## 编码规范
 
@@ -74,7 +76,8 @@ GRADLE_USER_HOME=/Users/seven/.gradle ./gradlew --offline clean build verifyPlug
 
 - 服务、搜索、排序或路径逻辑：覆盖正常行为、大小写/空输入、路径规范化、重复路径和缺失项目。
 - 持久化或 schema 变化：覆盖读写往返、旧版本迁移、损坏/缺失数据和身份稳定性。
-- UI 或 Action：至少通过 `runIde` 冒烟验证新增、编辑、删除列表项、收藏、标签、搜索，以及当前/新窗口打开行为。
+- 目录扫描、复制或删除：覆盖识别标记、扫描深度与忽略目录、重名目标、符号链接、部分失败清理、根目录保护和缺失目录。
+- UI 或 Action：至少通过 `runIde` 冒烟验证保存、添加、批量导入、编辑、复制、定位、仅移除、移至废纸篓/永久删除、收藏、标签、搜索、欢迎页，以及当前/新窗口打开行为。
 - `plugin.xml`、依赖或兼容范围变化：执行完整构建和 `verifyPlugin`。
 
 功能修改至少运行相关测试；提交或发版前运行完整构建。无法执行某项验证时，在交付说明中明确原因和剩余风险。
