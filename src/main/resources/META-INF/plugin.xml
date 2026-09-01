@@ -44,6 +44,11 @@
                 <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
                 <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift P"/>
             </action>
+            <action id="ProjectManager.ToggleView" class="com.github.hyxf.projectmanager.feature.action.ToggleProjectViewAction"
+                    text="Switch Project View" description="Switch between list and tags views">
+                <keyboard-shortcut keymap="$default" first-keystroke="control shift T"/>
+                <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift T"/>
+            </action>
             <separator/>
             <action id="ProjectManager.SaveCurrentProject" class="com.github.hyxf.projectmanager.feature.action.SaveCurrentProjectAction" text="Save Current Project..."/>
             <action id="ProjectManager.AddProject" class="com.github.hyxf.projectmanager.feature.action.AddProjectAction" text="Add Project..."/>

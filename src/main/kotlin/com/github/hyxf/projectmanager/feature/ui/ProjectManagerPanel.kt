@@ -129,7 +129,7 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
                 )
             },
             sortActions(),
-            viewAction(),
+            ActionManager.getInstance().getAction("ProjectManager.ToggleView"),
             manageTagsAction(),
             settingsAction(),
         )
@@ -159,27 +159,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
                 refreshProjects()
             }
         }
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
-    }
-
-    private fun viewAction() = object : AnAction() {
-        override fun actionPerformed(e: AnActionEvent) {
-            viewMode = if (viewMode == ProjectManagerSettings.ViewMode.LIST) {
-                ProjectManagerSettings.ViewMode.TAGS
-            } else {
-                ProjectManagerSettings.ViewMode.LIST
-            }
-            ProjectUiSupport.runInBackground(project, "Save view setting", { settings.updateViewMode(viewMode) })
-            refreshProjects()
-        }
-
-        override fun update(e: AnActionEvent) {
-            val listView = viewMode == ProjectManagerSettings.ViewMode.LIST
-            e.presentation.icon = if (listView) ProjectManagerIcons.TagsView else ProjectManagerIcons.ListFiles
-            e.presentation.text = if (listView) "Switch to Tags View" else "Switch to List View"
-            e.presentation.description = e.presentation.text
-        }
-
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
     }
 
