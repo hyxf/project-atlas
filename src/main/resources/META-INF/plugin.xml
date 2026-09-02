@@ -13,8 +13,6 @@
         <applicationService serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.ProjectJsonStore"/>
         <applicationService serviceInterface="com.github.hyxf.projectmanager.feature.project.ProjectRepository"
                             serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.PersistentProjectRepository"/>
-        <applicationService serviceInterface="com.github.hyxf.projectmanager.feature.tag.TagRepository"
-                            serviceImplementation="com.github.hyxf.projectmanager.infrastructure.persistence.PersistentTagRepository"/>
         <applicationService serviceImplementation="com.github.hyxf.projectmanager.feature.project.ProjectManagerService"/>
         <applicationService serviceImplementation="com.github.hyxf.projectmanager.settings.ProjectManagerSettings"/>
         <toolWindow id="Project Atlas" anchor="left"

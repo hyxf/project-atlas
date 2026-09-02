@@ -23,7 +23,7 @@ class ProjectJsonStoreTest {
         val reloaded = PersistentProjectRepository(ProjectJsonStore(file))
         assertEquals("Alpha", reloaded.findById("id-1")?.name)
         assertEquals(setOf("Work"), reloaded.findById("id-1")?.tags)
-        assertTrue(Files.readString(file).contains("\"schemaVersion\": 3"))
+        assertTrue(Files.readString(file).contains("\"schemaVersion\": 4"))
     }
 
     @Test
@@ -32,9 +32,12 @@ class ProjectJsonStoreTest {
         val file = directory.resolve("project.json")
         val store = ProjectJsonStore(file)
         store.ensureFile()
-        Files.writeString(file, """{"schemaVersion":1,"projects":[],"tags":["Java"]}""")
+        Files.writeString(file, """{
+            "schemaVersion":1,
+            "projects":[{"id":"id-1","name":"Alpha","path":"/tmp/alpha","tags":["Java"]}]
+        }""")
         store.forceReload()
-        assertEquals(setOf("Java"), store.tags())
+        assertEquals(setOf("Java"), store.projects().flatMapTo(sortedSetOf()) { it.tags })
         assertEquals("CURRENT_WINDOW", store.settings().defaultOpenMode)
     }
 
@@ -63,7 +66,7 @@ class ProjectJsonStoreTest {
             "schemaVersion": 1,
             "customRoot": "keep-me",
             "projects": [{"id":"id-1","name":"Alpha","path":"/tmp/alpha","tags":null,"customProject":42}],
-            "tags": null,
+            "tags": ["Unused"],
             "settings": {"defaultOpenMode":null,"importScanDepth":4,"customSetting":"keep-me"}
         }""")
         val store = ProjectJsonStore(file)
@@ -73,11 +76,12 @@ class ProjectJsonStoreTest {
         store.replaceProjects(store.projects())
 
         val saved = Files.readString(file)
-        assertTrue(saved.contains("\"schemaVersion\": 3"))
+        assertTrue(saved.contains("\"schemaVersion\": 4"))
         assertTrue(saved.contains("\"customRoot\": \"keep-me\""))
         assertTrue(saved.contains("\"customProject\": 42"))
         assertTrue(saved.contains("\"customSetting\": \"keep-me\""))
         assertFalse(saved.contains("\"importScanDepth\""))
+        assertFalse(saved.contains("Unused"))
     }
 
     @Test
@@ -126,13 +130,13 @@ class ProjectJsonStoreTest {
         Files.writeString(file, "{broken")
         val store = ProjectJsonStore(file)
 
-        assertFailsWith<IllegalStateException> { store.replaceTags(setOf("Java")) }
+        assertFailsWith<IllegalStateException> { store.replaceSettings(ProjectJsonStore.SettingsData()) }
         assertEquals("{broken", Files.readString(file))
 
         Files.writeString(file, """{"schemaVersion":2,"projects":[],"tags":[]}""")
         store.forceReload()
-        store.replaceTags(setOf("Java"))
-        assertEquals(setOf("Java"), store.tags())
+        store.replaceSettings(ProjectJsonStore.SettingsData(selectedListFilter = "FAVORITES"))
+        assertEquals("FAVORITES", store.settings().selectedListFilter)
     }
 
     @Test
@@ -145,9 +149,9 @@ class ProjectJsonStoreTest {
 
         Files.delete(file)
         store.forceReload()
-        store.replaceTags(setOf("Java"))
+        store.replaceSettings(ProjectJsonStore.SettingsData(selectedListFilter = "FAVORITES"))
 
-        assertEquals(setOf("Java"), store.tags())
+        assertEquals("FAVORITES", store.settings().selectedListFilter)
     }
 
     @Test
@@ -165,7 +169,7 @@ class ProjectJsonStoreTest {
         }""")
         val store = ProjectJsonStore(file)
 
-        store.replaceTags(setOf("Java"))
+        store.replaceSettings(store.settings())
 
         val saved = Files.readString(file)
         assertTrue(saved.contains("\"custom\": \"keep-me\""))

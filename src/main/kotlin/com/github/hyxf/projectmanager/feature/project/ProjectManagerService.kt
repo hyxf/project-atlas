@@ -2,7 +2,6 @@ package com.github.hyxf.projectmanager.feature.project
 
 import com.github.hyxf.projectmanager.infrastructure.filesystem.ProjectPaths
 import com.github.hyxf.projectmanager.settings.ProjectManagerSettings
-import com.github.hyxf.projectmanager.feature.tag.TagRepository
 import com.intellij.openapi.components.service
 import com.intellij.serviceContainer.NonInjectable
 import java.nio.file.Files
@@ -78,18 +77,10 @@ class ProjectManagerService() {
         projects().filter { oldTag in it.tags }.forEach {
             updateProject(it.id, it.name, it.tags - oldTag + newTag, it.favorite)
         }
-        tagRepository()?.rename(oldTag, newTag)
     }
 
     fun deleteTag(tag: String) {
         projects().filter { tag in it.tags }.forEach { removeTag(it.id, tag) }
-        tagRepository()?.remove(tag)
-    }
-
-    fun createTag(tag: String) {
-        val cleaned = tag.trim()
-        require(cleaned.isNotEmpty()) { "Tag name must not be empty" }
-        tagRepository()?.add(cleaned)
     }
 
     fun updateLastOpened(path: Path): ProjectItem? {
@@ -194,11 +185,7 @@ class ProjectManagerService() {
             score + points
         }
 
-    fun tags(): Set<String> = projects().flatMapTo(sortedSetOf()) { it.tags }.apply {
-        tagRepository()?.getAll()?.let(::addAll)
-    }
-
-    private fun tagRepository(): TagRepository? = if (injectedRepository != null) null else service()
+    fun tags(): Set<String> = projects().flatMapTo(sortedSetOf()) { it.tags }
 
     private fun cleanTags(tags: Set<String>): Set<String> = tags.map(String::trim).filter(String::isNotEmpty).toSet()
 }

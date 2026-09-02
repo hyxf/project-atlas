@@ -26,7 +26,6 @@ class ProjectJsonStore() {
     data class Data(
         var schemaVersion: Int = CURRENT_SCHEMA_VERSION,
         var projects: MutableList<ProjectData> = mutableListOf(),
-        var tags: MutableList<String> = mutableListOf(),
         var settings: SettingsData = SettingsData(),
     )
 
@@ -62,25 +61,10 @@ class ProjectJsonStore() {
     }
 
     @Synchronized
-    fun tags(): Set<String> {
-        reloadIfChanged()
-        return (data.tags + data.projects.flatMap { it.tags }).filter(String::isNotBlank).toSortedSet()
-    }
-
-    @Synchronized
     fun replaceProjects(projects: List<ProjectItem>) {
         reloadIfChanged()
         checkWritable()
         data.projects = projects.map(::toState).toMutableList()
-        data.tags = (data.tags + projects.flatMap { it.tags }).distinct().sorted().toMutableList()
-        save()
-    }
-
-    @Synchronized
-    fun replaceTags(tags: Set<String>) {
-        reloadIfChanged()
-        checkWritable()
-        data.tags = tags.filter(String::isNotBlank).distinct().sorted().toMutableList()
         save()
     }
 
@@ -179,14 +163,13 @@ class ProjectJsonStore() {
             tagProjectSpacing = settingsJson?.int("tagProjectSpacing", 4) ?: 4,
             listProjectSpacing = settingsJson?.int("listProjectSpacing", 4) ?: 4,
         )
-        val tags = (root.stringList("tags") + projects.flatMap { it.tags })
-            .filter(String::isNotBlank).distinct().sorted().toMutableList()
-        return Data(CURRENT_SCHEMA_VERSION, projects, tags, settings)
+        return Data(CURRENT_SCHEMA_VERSION, projects, settings)
     }
 
     private fun mergeWithUnknownFields(): JsonObject {
         val root = sourceJson.deepCopy()
         root.addProperty("schemaVersion", CURRENT_SCHEMA_VERSION)
+        root.remove("tags")
         val oldProjects = sourceJson.elements("projects").mapNotNull { element ->
             runCatching { element.asJsonObject }.getOrNull()?.let { it.string("id") to it }
         }.toMap()
@@ -202,7 +185,6 @@ class ProjectJsonStore() {
             .filter { parseProject(it) == null }
             .forEach { projectsJson.add(it.deepCopy()) }
         root.add("projects", projectsJson)
-        root.add("tags", gson.toJsonTree(data.tags))
         val settingsJson = sourceJson.objectValue("settings")?.let { it.deepCopy() } ?: JsonObject()
         settingsJson.remove("importScanDepth")
         gson.toJsonTree(data.settings).asJsonObject.entrySet().forEach { (key, value) -> settingsJson.add(key, value) }
@@ -249,7 +231,7 @@ class ProjectJsonStore() {
     )
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 3
+        const val CURRENT_SCHEMA_VERSION = 4
         fun defaultFile(): Path = Path(System.getProperty("user.home"), ".project-manager", "project.json")
     }
 }
