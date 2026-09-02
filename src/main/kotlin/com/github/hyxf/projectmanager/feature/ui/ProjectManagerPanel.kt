@@ -167,7 +167,6 @@ class ProjectManagerPanel(private val project: Project) : SimpleToolWindowPanel(
         add(sortAction("Name", ProjectManagerSettings.SortBy.NAME))
         add(sortAction("Path", ProjectManagerSettings.SortBy.PATH))
         add(sortAction("Recent", ProjectManagerSettings.SortBy.RECENT))
-        add(sortAction("Saved", ProjectManagerSettings.SortBy.SAVED))
     }
 
     private fun sortAction(text: String, value: ProjectManagerSettings.SortBy) = object : ToggleAction(text) {

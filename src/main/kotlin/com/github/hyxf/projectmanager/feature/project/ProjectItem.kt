@@ -9,6 +9,4 @@ data class ProjectItem(
     val tags: Set<String> = emptySet(),
     val favorite: Boolean = false,
     val lastOpenedAt: Long? = null,
-    val createdAt: Long,
-    val updatedAt: Long,
 )

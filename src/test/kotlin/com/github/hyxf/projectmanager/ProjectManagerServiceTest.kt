@@ -52,7 +52,6 @@ class ProjectManagerServiceTest {
         assertEquals(setOf("Java"), service.addTag(saved.id, " Java ").tags)
         assertTrue(service.removeTag(saved.id, "Java").tags.isEmpty())
         assertEquals(42, service.updateLastOpened(saved.path)?.lastOpenedAt)
-        assertEquals(saved.updatedAt, service.findByPath(saved.path)?.updatedAt)
     }
 
     @Test
@@ -90,13 +89,12 @@ class ProjectManagerServiceTest {
 
     @Test
     fun `projects can be sorted by each welcome screen option`() {
-        repository.add(project("beta", "Beta", "build/a", 100, updatedAt = 300))
-        repository.add(project("alpha", "Alpha", "build/z", 200, updatedAt = 100))
+        repository.add(project("beta", "Beta", "build/a", 100))
+        repository.add(project("alpha", "Alpha", "build/z", 200))
 
         assertEquals(listOf("alpha", "beta"), service.sortProjects(service.projects(), ProjectManagerSettings.SortBy.NAME).map(ProjectItem::id))
         assertEquals(listOf("beta", "alpha"), service.sortProjects(service.projects(), ProjectManagerSettings.SortBy.PATH).map(ProjectItem::id))
         assertEquals(listOf("alpha", "beta"), service.sortProjects(service.projects(), ProjectManagerSettings.SortBy.RECENT).map(ProjectItem::id))
-        assertEquals(listOf("beta", "alpha"), service.sortProjects(service.projects(), ProjectManagerSettings.SortBy.SAVED).map(ProjectItem::id))
     }
 
     @Test
@@ -135,13 +133,11 @@ class ProjectManagerServiceTest {
     }
 }
 
-private fun project(id: String, name: String, path: String, lastOpenedAt: Long?, updatedAt: Long = 1) = ProjectItem(
+private fun project(id: String, name: String, path: String, lastOpenedAt: Long?) = ProjectItem(
     id = id,
     name = name,
     path = Path.of(path).toAbsolutePath().normalize(),
     lastOpenedAt = lastOpenedAt,
-    createdAt = 1,
-    updatedAt = updatedAt,
 )
 
 private class MemoryRepository : ProjectRepository {

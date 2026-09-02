@@ -286,8 +286,7 @@ private class ProjectManagerWelcomePanel(
     ) {
         NAME("Name", ProjectManagerSettings.SortBy.NAME),
         PATH("Path", ProjectManagerSettings.SortBy.PATH),
-        RECENT("Recent", ProjectManagerSettings.SortBy.RECENT),
-        SAVED("Saved", ProjectManagerSettings.SortBy.SAVED);
+        RECENT("Recent", ProjectManagerSettings.SortBy.RECENT);
 
         override fun toString(): String = label
     }

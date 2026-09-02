@@ -18,12 +18,12 @@ class ProjectJsonStoreTest {
         val file = directory.resolve("project.json")
         val store = ProjectJsonStore(file)
         val repository = PersistentProjectRepository(store)
-        repository.add(ProjectItem("id-1", "Alpha", Path("/tmp/alpha"), setOf("Work"), true, 10, 1, 2))
+        repository.add(ProjectItem("id-1", "Alpha", Path("/tmp/alpha"), setOf("Work"), true, 10))
 
         val reloaded = PersistentProjectRepository(ProjectJsonStore(file))
         assertEquals("Alpha", reloaded.findById("id-1")?.name)
         assertEquals(setOf("Work"), reloaded.findById("id-1")?.tags)
-        assertTrue(Files.readString(file).contains("\"schemaVersion\": 2"))
+        assertTrue(Files.readString(file).contains("\"schemaVersion\": 3"))
     }
 
     @Test
@@ -73,11 +73,35 @@ class ProjectJsonStoreTest {
         store.replaceProjects(store.projects())
 
         val saved = Files.readString(file)
-        assertTrue(saved.contains("\"schemaVersion\": 2"))
+        assertTrue(saved.contains("\"schemaVersion\": 3"))
         assertTrue(saved.contains("\"customRoot\": \"keep-me\""))
         assertTrue(saved.contains("\"customProject\": 42"))
         assertTrue(saved.contains("\"customSetting\": \"keep-me\""))
         assertFalse(saved.contains("\"importScanDepth\""))
+    }
+
+    @Test
+    fun `saving removes obsolete project timestamps`() {
+        val directory = Files.createTempDirectory("project-manager-obsolete-timestamps-test")
+        val file = directory.resolve("project.json")
+        Files.writeString(file, """{
+            "schemaVersion": 2,
+            "projects": [{
+                "id":"id-1",
+                "name":"Alpha",
+                "path":"/tmp/alpha",
+                "createdAt":1,
+                "updatedAt":2
+            }],
+            "tags": []
+        }""")
+        val store = ProjectJsonStore(file)
+
+        store.replaceProjects(store.projects())
+
+        val saved = Files.readString(file)
+        assertFalse(saved.contains("\"createdAt\""))
+        assertFalse(saved.contains("\"updatedAt\""))
     }
 
     @Test
@@ -86,7 +110,7 @@ class ProjectJsonStoreTest {
         val file = directory.resolve("project.json")
         val store = ProjectJsonStore(file)
         val repository = PersistentProjectRepository(store)
-        repository.add(ProjectItem("id-1", "Alpha", Path("/tmp/alpha"), createdAt = 1, updatedAt = 1))
+        repository.add(ProjectItem("id-1", "Alpha", Path("/tmp/alpha")))
         Files.writeString(file, "{broken")
 
         store.forceReload()

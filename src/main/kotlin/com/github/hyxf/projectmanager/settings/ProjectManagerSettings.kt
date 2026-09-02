@@ -15,7 +15,7 @@ fun interface ProjectManagerSettingsListener {
 
 class ProjectManagerSettings {
     enum class OpenMode { CURRENT_WINDOW, NEW_WINDOW }
-    enum class SortBy { NAME, PATH, RECENT, SAVED }
+    enum class SortBy { NAME, PATH, RECENT }
     enum class ViewMode { LIST, TAGS }
     enum class ListFilter(val displayName: String) {
         ALL("All"), RECENT("Recent"), FAVORITES("Favorites")

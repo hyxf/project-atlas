@@ -21,8 +21,6 @@ class ProjectJsonStore() {
         var tags: MutableList<String> = mutableListOf(),
         var favorite: Boolean = false,
         var lastOpenedAt: Long? = null,
-        var createdAt: Long = 0,
-        var updatedAt: Long = 0,
     )
 
     data class Data(
@@ -195,6 +193,8 @@ class ProjectJsonStore() {
         val projectsJson = com.google.gson.JsonArray()
         data.projects.forEach { project ->
             val merged = oldProjects[project.id]?.deepCopy() ?: JsonObject()
+            merged.remove("createdAt")
+            merged.remove("updatedAt")
             gson.toJsonTree(project).asJsonObject.entrySet().forEach { (key, value) -> merged.add(key, value) }
             projectsJson.add(merged)
         }
@@ -219,8 +219,6 @@ class ProjectJsonStore() {
             tags = value.stringList("tags").toMutableList(),
             favorite = value.boolean("favorite"),
             lastOpenedAt = value.longOrNull("lastOpenedAt"),
-            createdAt = value.long("createdAt"),
-            updatedAt = value.long("updatedAt"),
         ).takeIf { it.id.isNotBlank() && it.path.isNotBlank() }
     }.getOrNull()
 
@@ -233,7 +231,6 @@ class ProjectJsonStore() {
         get(name)?.takeIf { it.isJsonPrimitive }?.asString ?: default
     private fun JsonObject.boolean(name: String, default: Boolean = false) = booleanOrNull(name) ?: default
     private fun JsonObject.booleanOrNull(name: String) = runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull()
-    private fun JsonObject.long(name: String, default: Long = 0) = longOrNull(name) ?: default
     private fun JsonObject.longOrNull(name: String) = runCatching { get(name)?.takeIf { !it.isJsonNull }?.asLong }.getOrNull()
     private fun JsonObject.int(name: String, default: Int = 0) =
         runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull() ?: default
@@ -243,16 +240,16 @@ class ProjectJsonStore() {
 
     private fun toModel(value: ProjectData): ProjectItem? = runCatching {
         ProjectItem(value.id, value.name, Path(value.path), value.tags.toSet(), value.favorite,
-            value.lastOpenedAt, value.createdAt, value.updatedAt)
+            value.lastOpenedAt)
     }.getOrNull()
 
     private fun toState(value: ProjectItem) = ProjectData(
         value.id, value.name, value.path.toString(), value.tags.sorted().toMutableList(), value.favorite,
-        value.lastOpenedAt, value.createdAt, value.updatedAt,
+        value.lastOpenedAt,
     )
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 2
+        const val CURRENT_SCHEMA_VERSION = 3
         fun defaultFile(): Path = Path(System.getProperty("user.home"), ".project-manager", "project.json")
     }
 }

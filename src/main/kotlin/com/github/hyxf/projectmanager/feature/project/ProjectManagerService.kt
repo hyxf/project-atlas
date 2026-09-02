@@ -37,16 +37,14 @@ class ProjectManagerService() {
         val normalized = ProjectPaths.normalize(path)
         require(name.isNotBlank()) { "Project name must not be empty" }
         if (repository.findByPath(normalized) != null) throw DuplicateProjectPathException(normalized)
-        val now = clock.millis()
         return repository.add(ProjectItem(UUID.randomUUID().toString(), name.trim(), normalized,
-            cleanTags(tags), favorite, null, now, now))
+            cleanTags(tags), favorite))
     }
 
     fun updateProject(id: String, name: String, tags: Set<String>, favorite: Boolean): ProjectItem {
         val current = requireNotNull(repository.findById(id)) { "Unknown project: $id" }
         require(name.isNotBlank()) { "Project name must not be empty" }
-        return repository.update(current.copy(name = name.trim(), tags = cleanTags(tags),
-            favorite = favorite, updatedAt = clock.millis()))
+        return repository.update(current.copy(name = name.trim(), tags = cleanTags(tags), favorite = favorite))
     }
 
     fun relocateProject(id: String, path: Path): ProjectItem {
@@ -54,7 +52,7 @@ class ProjectManagerService() {
         val normalized = ProjectPaths.normalize(path)
         val duplicate = repository.findByPath(normalized)
         if (duplicate != null && duplicate.id != id) throw DuplicateProjectPathException(normalized)
-        return repository.update(current.copy(path = normalized, updatedAt = clock.millis()))
+        return repository.update(current.copy(path = normalized))
     }
 
     fun removeProject(id: String): Boolean = repository.remove(id)
@@ -63,7 +61,7 @@ class ProjectManagerService() {
 
     fun toggleFavorite(id: String): ProjectItem {
         val current = requireNotNull(repository.findById(id)) { "Unknown project: $id" }
-        return repository.update(current.copy(favorite = !current.favorite, updatedAt = clock.millis()))
+        return repository.update(current.copy(favorite = !current.favorite))
     }
 
     fun addTag(id: String, tag: String): ProjectItem {
@@ -119,7 +117,6 @@ class ProjectManagerService() {
                         name = request.name.trim(),
                         tags = cleanTags(request.tags),
                         favorite = request.favorite,
-                        updatedAt = clock.millis(),
                     )
                     projects[projects.indexOfFirst { it.id == existing.id }] = updated
                     byPath[path] = updated
@@ -127,10 +124,9 @@ class ProjectManagerService() {
                     results += ProjectImportResult(path, ProjectImportOutcome.UPDATED)
                 }
                 else -> {
-                    val now = clock.millis()
                     val added = ProjectItem(
                         UUID.randomUUID().toString(), request.name.trim(), path, cleanTags(request.tags),
-                        request.favorite, null, now, now,
+                        request.favorite,
                     )
                     projects += added
                     byPath[path] = added
@@ -180,11 +176,6 @@ class ProjectManagerService() {
         ProjectManagerSettings.SortBy.PATH -> items.sortedBy { it.path.toString().lowercase() }
         ProjectManagerSettings.SortBy.RECENT -> items.sortedWith(
             compareByDescending<ProjectItem> { it.lastOpenedAt ?: Long.MIN_VALUE }
-                .thenBy { it.name.lowercase() }
-                .thenBy { it.path.toString().lowercase() },
-        )
-        ProjectManagerSettings.SortBy.SAVED -> items.sortedWith(
-            compareByDescending<ProjectItem>(ProjectItem::updatedAt)
                 .thenBy { it.name.lowercase() }
                 .thenBy { it.path.toString().lowercase() },
         )
