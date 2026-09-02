@@ -55,32 +55,11 @@ class ProjectManagerService() {
     }
 
     fun removeProject(id: String): Boolean = repository.remove(id)
-    fun findProject(id: String): ProjectItem? = repository.findById(id)
     fun findByPath(path: Path): ProjectItem? = repository.findByPath(ProjectPaths.normalize(path))
 
     fun toggleFavorite(id: String): ProjectItem {
         val current = requireNotNull(repository.findById(id)) { "Unknown project: $id" }
         return repository.update(current.copy(favorite = !current.favorite))
-    }
-
-    fun addTag(id: String, tag: String): ProjectItem {
-        val current = requireNotNull(repository.findById(id)) { "Unknown project: $id" }
-        return updateProject(id, current.name, current.tags + tag, current.favorite)
-    }
-
-    fun removeTag(id: String, tag: String): ProjectItem {
-        val current = requireNotNull(repository.findById(id)) { "Unknown project: $id" }
-        return updateProject(id, current.name, current.tags - tag, current.favorite)
-    }
-
-    fun renameTag(oldTag: String, newTag: String) {
-        projects().filter { oldTag in it.tags }.forEach {
-            updateProject(it.id, it.name, it.tags - oldTag + newTag, it.favorite)
-        }
-    }
-
-    fun deleteTag(tag: String) {
-        projects().filter { tag in it.tags }.forEach { removeTag(it.id, tag) }
     }
 
     fun updateLastOpened(path: Path): ProjectItem? {

@@ -46,11 +46,9 @@ class ProjectManagerServiceTest {
     }
 
     @Test
-    fun `favorite tags and last opened are maintained`() {
+    fun `favorite and last opened are maintained`() {
         val saved = service.addProject("Alpha", Path.of("build/alpha"))
         assertTrue(service.toggleFavorite(saved.id).favorite)
-        assertEquals(setOf("Java"), service.addTag(saved.id, " Java ").tags)
-        assertTrue(service.removeTag(saved.id, "Java").tags.isEmpty())
         assertEquals(42, service.updateLastOpened(saved.path)?.lastOpenedAt)
     }
 
